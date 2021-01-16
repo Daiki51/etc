@@ -1,0 +1,117 @@
+diff --git a/src/client/js/components/PageEditor/DrawioModal.jsx b/src/client/js/components/PageEditor/DrawioModal.jsx
+index fefa074ba..8f425ddd5 100644
+--- a/src/client/js/components/PageEditor/DrawioModal.jsx
++++ b/src/client/js/components/PageEditor/DrawioModal.jsx
+@@ -116,7 +116,7 @@ class DrawioModal extends React.PureComponent {
+   get drawioURL() {
+     const { config } = this.props.appContainer;
+ 
+-    const drawioUri = config.env.DRAWIO_URI || 'https://www.draw.io/';
++    const drawioUri = config.env.DRAWIO_URI || 'https://embed.diagrams.net/';
+     const url = new URL(drawioUri);
+ 
+     // refs: https://desk.draw.io/support/solutions/articles/16000042546-what-url-parameters-are-supported-
+diff --git a/src/client/js/util/reveal/plugins/markdown.js b/src/client/js/util/reveal/plugins/markdown.js
+old mode 100755
+new mode 100644
+diff --git a/src/server/routes/attachment.js b/src/server/routes/attachment.js
+index 13e54ace2..b365f5677 100644
+--- a/src/server/routes/attachment.js
++++ b/src/server/routes/attachment.js
+@@ -192,6 +192,9 @@ module.exports = function(crowi, app) {
+     if (req.fresh) {
+       return res.sendStatus(304);
+     }
++    
++    // Add by Churei (2020/06/26)
++    return internalRedirect(res, attachment);
+ 
+     let fileStream;
+     try {
+@@ -204,7 +207,18 @@ module.exports = function(crowi, app) {
+ 
+     return fileStream.pipe(res);
+   }
+-
++  
++  // Add by Churei (2020/06/26)
++  function internalRedirect(res, attachment) {
++    const dirName = (attachment.page != null)
++        ? 'attachment'
++        : 'user';
++    const basePath = "/growi-internal/uploads/";
++    const redirectPath = basePath + dirName + "/" + attachment.fileName;
++    res.set('X-Accel-Redirect', redirectPath);
++    return res.end();
++  }
++  
+   /**
+    * set http response header
+    *
+@@ -213,9 +227,11 @@ module.exports = function(crowi, app) {
+    * @param {boolean} forceDownload
+    */
+   function setHeaderToRes(res, attachment, forceDownload) {
++    console.log("attachment._id", attachment._id);
++    console.log("attachment.createdAt", attachment.createdAt);
+     res.set({
+       ETag: `Attachment-${attachment._id}`,
+-      'Last-Modified': attachment.createdAt,
++      // 'Last-Modified': attachment.createdAt,
+     });
+ 
+     // download
+diff --git a/src/server/service/search-delegator/elasticsearch.js b/src/server/service/search-delegator/elasticsearch.js
+index 12a64100f..33755a87b 100644
+--- a/src/server/service/search-delegator/elasticsearch.js
++++ b/src/server/service/search-delegator/elasticsearch.js
+@@ -59,7 +59,7 @@ class ElasticsearchDelegator {
+     this.client = new elasticsearch.Client({
+       host,
+       httpAuth,
+-      requestTimeout: 5000,
++      requestTimeout: 10000,
+       // log: 'debug',
+     });
+     this.indexName = indexName;
+diff --git a/src/server/views/admin/app.html b/src/server/views/admin/app.html
+old mode 100755
+new mode 100644
+diff --git a/src/server/views/widget/headers/mathjax.html b/src/server/views/widget/headers/mathjax.html
+index 7e2390caf..0bddce3be 100644
+--- a/src/server/views/widget/headers/mathjax.html
++++ b/src/server/views/widget/headers/mathjax.html
+@@ -1,16 +1,21 @@
+ <!-- Mathjax -->
+-<script type="text/x-mathjax-config" async>
+-  MathJax.Hub.Config({
+-    skipStartupTypeset: true,
+-    extensions: ["tex2jax.js"],
+-    jax: ["input/TeX", "output/SVG"],
+-    tex2jax: {
+-      processEscapes: true
++<script type="text/javascript">
++  window.MathJax = {
++    startup: {
++      typeset: false
+     },
+-    showMathMenu: false,
+-    showMathMenuMSIE: false,
+-    showProcessingMessages: false,
+-    messageStyle: "none"
+-  });
++    tex: {
++      processEscapes: true,
++      inlineMath: [['$', '$'], ['\\(', '\\)']]
++    },
++    options: {
++      renderActions: {
++        addMenu: [],
++        checkLoading: []
++      },
++      ignoreHtmlClass: 'tex2jax_ignore',
++      processHtmlClass: 'tex2jax_process'
++    }
++  };
+ </script>
+ {{ cdnScriptTag('mathjax') }}
